@@ -1,9 +1,7 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{WebGlProgram, WebGlRenderingContext, WebGlShader};
 use nalgebra::{Matrix4, Rotation3, Vector3};
-use std::cell::RefCell;
 use std::f32::consts::PI;
-use std::rc::Rc;
 
 // A macro to provide `println!(..)`-style syntax for `console.log` logging.
 #[allow(unused_macros)]
@@ -38,13 +36,6 @@ const FRAGMENT_SHADER: &str = r#"
     }
 "#;
 
-// Struct to hold animation frame callback
-struct RenderLoop {
-    #[allow(dead_code)]
-    cube: Rc<RefCell<Cube>>,
-    closure: Option<Closure<dyn FnMut(f64)>>,
-}
-
 #[wasm_bindgen]
 pub struct Cube {
     gl: WebGlRenderingContext,
@@ -53,7 +44,7 @@ pub struct Cube {
     rotation: f32,
     last_time: f64,
     animation_id: Option<i32>,
-    render_loop: Option<RenderLoop>,
+    animation_closure: Option<Closure<dyn FnMut(f64)>>,
 }
 
 struct ProgramInfo {
@@ -139,58 +130,36 @@ impl Cube {
             rotation: 0.0,
             last_time: performance.now(),
             animation_id: None,
-            render_loop: None,
+            animation_closure: None,
         })
     }
     
     pub fn start(&mut self) -> Result<(), JsValue> {
-        // If animation is already running, do nothing
+        // If already running, do nothing
         if self.animation_id.is_some() {
             return Ok(());
         }
         
-        // Create a reference-counted mutable reference to self
-        let cube_rc = Rc::new(RefCell::new(self.clone()));
-        let cube_clone = cube_rc.clone();
+        let cube_ptr = self as *mut Cube;
         
-        // Create closure for animation frame callback
-        let f = Closure::wrap(Box::new(move |time: f64| {
-            let mut cube = cube_clone.borrow_mut();
+        // Create a new animation closure
+        let animation_closure = Closure::wrap(Box::new(move |time: f64| {
+            let cube = unsafe { &mut *cube_ptr };
             cube.render(time);
             
             // Request next frame
             let window = web_sys::window().unwrap();
-            match &cube.render_loop {
-                Some(render_loop) => {
-                    match &render_loop.closure {
-                        Some(closure) => {
-                            let id = window.request_animation_frame(closure.as_ref().unchecked_ref()).unwrap();
-                            cube.animation_id = Some(id);
-                        },
-                        None => { log!("Closure is None"); }
-                    }
-                },
-                None => { log!("Render loop is None"); }
+            if let Some(closure) = &cube.animation_closure {
+                let id = window.request_animation_frame(closure.as_ref().unchecked_ref()).unwrap();
+                cube.animation_id = Some(id);
             }
         }) as Box<dyn FnMut(f64)>);
         
-        // Set up render loop
-        let render_loop = RenderLoop {
-            cube: cube_rc,
-            closure: Some(f),
-        };
-        
-        // Set the render loop field
-        self.render_loop = Some(render_loop);
-        
-        // Start animation by requesting first frame
+        // Start the animation
         let window = web_sys::window().unwrap();
-        if let Some(render_loop) = &self.render_loop {
-            if let Some(closure) = &render_loop.closure {
-                let id = window.request_animation_frame(closure.as_ref().unchecked_ref()).unwrap();
-                self.animation_id = Some(id);
-            }
-        }
+        let id = window.request_animation_frame(animation_closure.as_ref().unchecked_ref())?;
+        self.animation_id = Some(id);
+        self.animation_closure = Some(animation_closure);
         
         Ok(())
     }
@@ -200,10 +169,11 @@ impl Cube {
             let window = web_sys::window().unwrap();
             window.cancel_animation_frame(id).unwrap();
             self.animation_id = None;
+            self.animation_closure = None;
         }
     }
     
-    fn render(&mut self, time: f64) {
+    pub fn render(&mut self, time: f64) {
         let delta = time - self.last_time;
         self.last_time = time;
         
@@ -299,35 +269,6 @@ impl Cube {
             type_,
             offset,
         );
-    }
-}
-
-// Implement Clone for Cube
-impl Clone for Cube {
-    fn clone(&self) -> Self {
-        Cube {
-            gl: self.gl.clone(),
-            program_info: ProgramInfo {
-                program: self.program_info.program.clone(),
-                attrib_locations: AttribLocations {
-                    vertex_position: self.program_info.attrib_locations.vertex_position,
-                    vertex_color: self.program_info.attrib_locations.vertex_color,
-                },
-                uniform_locations: UniformLocations {
-                    projection_matrix: self.program_info.uniform_locations.projection_matrix.clone(),
-                    model_view_matrix: self.program_info.uniform_locations.model_view_matrix.clone(),
-                },
-            },
-            buffers: Buffers {
-                position: self.buffers.position.clone(),
-                color: self.buffers.color.clone(),
-                indices: self.buffers.indices.clone(),
-            },
-            rotation: self.rotation,
-            last_time: self.last_time,
-            animation_id: self.animation_id,
-            render_loop: None,
-        }
     }
 }
 

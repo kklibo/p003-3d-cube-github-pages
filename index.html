@@ -5,74 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Spinning Cube with Rust + WebAssembly</title>
     <link rel="stylesheet" href="style.css">
-    <script type="module">
-        import init, { Cube } from './pkg/p003_3d_cube_github_pages.js';
-
-        async function run() {
-            try {
-                // Initialize the WebAssembly module
-                await init();
-                
-                console.log("WebAssembly module loaded successfully");
-                
-                // Get canvas dimensions
-                const canvas = document.getElementById('cube-canvas');
-                resizeCanvasToDisplaySize(canvas);
-                
-                // Create and start cube
-                console.log("Creating cube instance...");
-                const cube = new Cube('cube-canvas');
-                
-                // Store cube instance to window for controls
-                window.cube = cube;
-                
-                console.log("Starting cube animation...");
-                
-                // Start the animation explicitly
-                const startResult = cube.start();
-                console.log("Animation started:", startResult);
-                
-                // Add event handlers for controls
-                document.getElementById('stop-button').addEventListener('click', () => {
-                    console.log("Stopping animation");
-                    cube.stop();
-                });
-                
-                document.getElementById('start-button').addEventListener('click', () => {
-                    console.log("Starting animation");
-                    cube.start();
-                });
-                
-                // Add window resize handler to keep canvas properly sized
-                window.addEventListener('resize', () => {
-                    resizeCanvasToDisplaySize(canvas);
-                });
-            } catch (e) {
-                console.error("Error initializing WebGL:", e);
-                document.getElementById('error-message').textContent = 
-                    `WebGL error: ${e.message}. Try using a different browser or updating your graphics drivers.`;
-                document.getElementById('error-container').style.display = 'flex';
-            }
-        }
-        
-        // Resize canvas to match display size
-        function resizeCanvasToDisplaySize(canvas) {
-            const displayWidth = canvas.clientWidth;
-            const displayHeight = canvas.clientHeight;
-            
-            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-                canvas.width = displayWidth;
-                canvas.height = displayHeight;
-                console.log(`Canvas resized to ${displayWidth}x${displayHeight}`);
-            }
-        }
-
-        // Start the application when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM loaded, running application");
-            run();
-        });
-    </script>
 </head>
 <body>
     <div class="container">
@@ -103,5 +35,74 @@
             </p>
         </footer>
     </div>
+
+    <script type="module">
+        import init, { Cube } from './pkg/p003_3d_cube_github_pages.js';
+
+        // Make the cube accessible globally for debugging
+        window.myCube = null;
+
+        // Resize canvas to match display size
+        function resizeCanvasToDisplaySize(canvas) {
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+            
+            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+                console.log(`Canvas resized to ${displayWidth}x${displayHeight}`);
+            }
+        }
+
+        // Initialize and start the cube
+        async function initializeCube() {
+            try {
+                console.log("Loading WebAssembly module...");
+                await init();
+                console.log("WebAssembly module loaded successfully");
+                
+                const canvas = document.getElementById('cube-canvas');
+                resizeCanvasToDisplaySize(canvas);
+                
+                console.log("Creating cube instance...");
+                const cube = new Cube('cube-canvas');
+                window.myCube = cube;
+                
+                console.log("Starting cube animation...");
+                cube.start();
+                
+                // Set up control buttons
+                document.getElementById('stop-button').addEventListener('click', () => {
+                    console.log("Stop button clicked");
+                    cube.stop();
+                });
+                
+                document.getElementById('start-button').addEventListener('click', () => {
+                    console.log("Start button clicked");
+                    cube.start();
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    resizeCanvasToDisplaySize(canvas);
+                });
+                
+                console.log("Initialization complete");
+            } catch (e) {
+                console.error("Error initializing application:", e);
+                document.getElementById('error-message').textContent = 
+                    `Error: ${e.message}. Try using a different browser or updating your graphics drivers.`;
+                document.getElementById('error-container').style.display = 'flex';
+            }
+        }
+
+        // Start everything when the page is fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeCube);
+        } else {
+            // If DOMContentLoaded already fired
+            initializeCube();
+        }
+    </script>
 </body>
 </html> 
