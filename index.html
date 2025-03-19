@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Spinning Cube with Rust + WebAssembly</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧊</text></svg>">
 </head>
 <body>
     <div class="container">
@@ -57,42 +58,102 @@
         // Initialize and start the cube
         async function initializeCube() {
             try {
-                console.log("Loading WebAssembly module...");
-                await init();
-                console.log("WebAssembly module loaded successfully");
+                console.log("[INIT] Starting initialization");
+                console.log("[INIT] Loading WebAssembly module...");
+                await init().catch(e => {
+                    console.error("[ERROR] Failed to initialize WebAssembly module:", e);
+                    throw e;
+                });
+                console.log("[INIT] WebAssembly module loaded successfully");
                 
                 const canvas = document.getElementById('cube-canvas');
+                if (!canvas) {
+                    throw new Error("Could not find canvas element with id 'cube-canvas'");
+                }
+                console.log("[INIT] Canvas element found");
+                
                 resizeCanvasToDisplaySize(canvas);
+                console.log("[INIT] Canvas dimensions set");
                 
-                console.log("Creating cube instance...");
-                const cube = new Cube('cube-canvas');
+                console.log("[INIT] Creating cube instance...");
+                let cube;
+                try {
+                    cube = new Cube('cube-canvas');
+                    console.log("[INIT] Cube instance created successfully");
+                } catch (e) {
+                    console.error("[ERROR] Failed to create cube instance:", e);
+                    throw e;
+                }
+                
                 window.myCube = cube;
+                console.log("[INIT] Global cube reference set");
                 
-                console.log("Starting cube animation...");
-                cube.start();
+                console.log("[INIT] Starting cube animation...");
+                try {
+                    const result = cube.start();
+                    console.log("[INIT] Animation started:", result);
+                } catch (e) {
+                    console.error("[ERROR] Failed to start animation:", e);
+                    throw e;
+                }
                 
                 // Set up control buttons
-                document.getElementById('stop-button').addEventListener('click', () => {
-                    console.log("Stop button clicked");
-                    cube.stop();
-                });
-                
-                document.getElementById('start-button').addEventListener('click', () => {
-                    console.log("Start button clicked");
-                    cube.start();
-                });
+                try {
+                    const stopButton = document.getElementById('stop-button');
+                    const startButton = document.getElementById('start-button');
+                    
+                    if (!stopButton || !startButton) {
+                        console.warn("[WARN] Button elements not found");
+                    } else {
+                        stopButton.addEventListener('click', () => {
+                            console.log("[UI] Stop button clicked");
+                            cube.stop();
+                        });
+                        
+                        startButton.addEventListener('click', () => {
+                            console.log("[UI] Start button clicked");
+                            cube.start();
+                        });
+                        console.log("[INIT] Button event listeners attached");
+                    }
+                } catch (e) {
+                    console.error("[ERROR] Failed to set up buttons:", e);
+                    // Don't throw here, we want to continue even if buttons fail
+                }
                 
                 // Handle window resize
-                window.addEventListener('resize', () => {
-                    resizeCanvasToDisplaySize(canvas);
-                });
+                try {
+                    window.addEventListener('resize', () => {
+                        console.log("[UI] Window resize detected");
+                        resizeCanvasToDisplaySize(canvas);
+                    });
+                    console.log("[INIT] Resize handler attached");
+                } catch (e) {
+                    console.error("[ERROR] Failed to set up resize handler:", e);
+                    // Continue even if resize handler fails
+                }
                 
-                console.log("Initialization complete");
+                console.log("[INIT] Initialization complete");
             } catch (e) {
-                console.error("Error initializing application:", e);
-                document.getElementById('error-message').textContent = 
-                    `Error: ${e.message}. Try using a different browser or updating your graphics drivers.`;
-                document.getElementById('error-container').style.display = 'flex';
+                console.error("[FATAL] Error initializing application:", e);
+                
+                // Try to display error in a user-friendly way
+                try {
+                    const errorContainer = document.getElementById('error-container');
+                    const errorMessage = document.getElementById('error-message');
+                    
+                    if (errorContainer && errorMessage) {
+                        errorMessage.textContent = `Error: ${e.message || "Unknown error"}. Try using a different browser or updating your graphics drivers.`;
+                        errorContainer.style.display = 'flex';
+                        console.log("[UI] Error message displayed to user");
+                    } else {
+                        console.error("[ERROR] Could not find error display elements");
+                        alert(`Error initializing 3D cube: ${e.message || "Unknown error"}`);
+                    }
+                } catch (displayErr) {
+                    console.error("[ERROR] Failed to display error message:", displayErr);
+                    alert(`Error initializing 3D cube: ${e.message || "Unknown error"}`);
+                }
             }
         }
 

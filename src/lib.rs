@@ -75,15 +75,44 @@ impl Cube {
     pub fn new(canvas_id: &str) -> Result<Cube, JsValue> {
         console_error_panic_hook::set_once();
         
+        web_sys::console::log_1(&"Cube::new() called".into());
+        
         // Get WebGL context
         let document = web_sys::window().unwrap().document().unwrap();
-        let canvas = document.get_element_by_id(canvas_id).unwrap();
-        let canvas: web_sys::HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
+        let canvas = match document.get_element_by_id(canvas_id) {
+            Some(element) => element,
+            None => {
+                web_sys::console::error_1(&format!("Could not find canvas with id: {}", canvas_id).into());
+                return Err(JsValue::from_str(&format!("Could not find canvas with id: {}", canvas_id)));
+            }
+        };
         
-        let gl = canvas
-            .get_context("webgl")?
-            .unwrap()
-            .dyn_into::<WebGlRenderingContext>()?;
+        web_sys::console::log_1(&"Canvas element found".into());
+        
+        let canvas: web_sys::HtmlCanvasElement = match canvas.dyn_into::<web_sys::HtmlCanvasElement>() {
+            Ok(canvas) => canvas,
+            Err(_) => {
+                web_sys::console::error_1(&"Element is not a canvas".into());
+                return Err(JsValue::from_str("Element is not a canvas"));
+            }
+        };
+        
+        let gl = match canvas.get_context("webgl") {
+            Ok(Some(ctx)) => match ctx.dyn_into::<WebGlRenderingContext>() {
+                Ok(gl) => {
+                    web_sys::console::log_1(&"WebGL context created successfully".into());
+                    gl
+                },
+                Err(_) => {
+                    web_sys::console::error_1(&"Failed to convert to WebGlRenderingContext".into());
+                    return Err(JsValue::from_str("Failed to convert to WebGlRenderingContext"));
+                }
+            },
+            _ => {
+                web_sys::console::error_1(&"Failed to get WebGL context".into());
+                return Err(JsValue::from_str("Failed to get WebGL context"));
+            }
+        };
             
         // Initialize shaders and program
         let vert_shader = compile_shader(
@@ -137,8 +166,11 @@ impl Cube {
     pub fn start(&mut self) -> Result<(), JsValue> {
         // If already running, do nothing
         if self.animation_id.is_some() {
+            web_sys::console::log_1(&"Animation already running, ignoring start request".into());
             return Ok(());
         }
+        
+        web_sys::console::log_1(&"Starting animation...".into());
         
         let cube_ptr = self as *mut Cube;
         
@@ -152,16 +184,26 @@ impl Cube {
             if let Some(closure) = &cube.animation_closure {
                 let id = window.request_animation_frame(closure.as_ref().unchecked_ref()).unwrap();
                 cube.animation_id = Some(id);
+            } else {
+                web_sys::console::warn_1(&"Animation closure is None in the render loop".into());
             }
         }) as Box<dyn FnMut(f64)>);
         
         // Start the animation
+        web_sys::console::log_1(&"Requesting first animation frame".into());
         let window = web_sys::window().unwrap();
-        let id = window.request_animation_frame(animation_closure.as_ref().unchecked_ref())?;
-        self.animation_id = Some(id);
-        self.animation_closure = Some(animation_closure);
-        
-        Ok(())
+        match window.request_animation_frame(animation_closure.as_ref().unchecked_ref()) {
+            Ok(id) => {
+                web_sys::console::log_1(&format!("Animation started with ID: {}", id).into());
+                self.animation_id = Some(id);
+                self.animation_closure = Some(animation_closure);
+                Ok(())
+            },
+            Err(err) => {
+                web_sys::console::error_1(&"Failed to request animation frame".into());
+                Err(err)
+            }
+        }
     }
     
     pub fn stop(&mut self) {
