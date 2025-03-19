@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Spinning Cube with Rust + WebAssembly</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module">
+        import init, { Cube } from './pkg/p003_3d_cube_github_pages.js';
+
+        async function run() {
+            await init();
+            
+            try {
+                // Get canvas dimensions
+                const canvas = document.getElementById('cube-canvas');
+                resizeCanvasToDisplaySize(canvas);
+                
+                // Create and start cube
+                const cube = new Cube('cube-canvas');
+                cube.start();
+                
+                // Store cube instance to window for controls
+                window.cube = cube;
+                
+                // Add event handlers for controls
+                document.getElementById('stop-button').addEventListener('click', () => {
+                    cube.stop();
+                });
+                
+                document.getElementById('start-button').addEventListener('click', () => {
+                    cube.start();
+                });
+            } catch (e) {
+                console.error("Error initializing WebGL:", e);
+                document.getElementById('error-message').textContent = 
+                    `WebGL error: ${e.message}. Try using a different browser or updating your graphics drivers.`;
+                document.getElementById('error-container').style.display = 'block';
+            }
+        }
+        
+        // Resize canvas to match display size
+        function resizeCanvasToDisplaySize(canvas) {
+            const displayWidth = canvas.clientWidth;
+            const displayHeight = canvas.clientHeight;
+            
+            if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                canvas.width = displayWidth;
+                canvas.height = displayHeight;
+            }
+        }
+
+        run();
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>3D Spinning Cube</h1>
+        <p class="description">Rendered with Rust + WebAssembly + WebGL</p>
+        
+        <div class="canvas-container">
+            <canvas id="cube-canvas"></canvas>
+            <div id="error-container">
+                <p id="error-message"></p>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="stop-button">Stop Animation</button>
+            <button id="start-button">Start Animation</button>
+        </div>
+        
+        <footer>
+            <p>
+                Built with 
+                <a href="https://www.rust-lang.org/" target="_blank">Rust</a>, 
+                <a href="https://webassembly.org/" target="_blank">WebAssembly</a>, and
+                <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API" target="_blank">WebGL</a>
+            </p>
+            <p>
+                <a href="https://github.com/yourusername/p003-3d-cube-github-pages" target="_blank">View Source on GitHub</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html> 
