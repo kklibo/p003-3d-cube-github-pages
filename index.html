@@ -9,33 +9,49 @@
         import init, { Cube } from './pkg/p003_3d_cube_github_pages.js';
 
         async function run() {
-            await init();
-            
             try {
+                // Initialize the WebAssembly module
+                await init();
+                
+                console.log("WebAssembly module loaded successfully");
+                
                 // Get canvas dimensions
                 const canvas = document.getElementById('cube-canvas');
                 resizeCanvasToDisplaySize(canvas);
                 
                 // Create and start cube
+                console.log("Creating cube instance...");
                 const cube = new Cube('cube-canvas');
-                cube.start();
                 
                 // Store cube instance to window for controls
                 window.cube = cube;
                 
+                console.log("Starting cube animation...");
+                
+                // Start the animation explicitly
+                const startResult = cube.start();
+                console.log("Animation started:", startResult);
+                
                 // Add event handlers for controls
                 document.getElementById('stop-button').addEventListener('click', () => {
+                    console.log("Stopping animation");
                     cube.stop();
                 });
                 
                 document.getElementById('start-button').addEventListener('click', () => {
+                    console.log("Starting animation");
                     cube.start();
+                });
+                
+                // Add window resize handler to keep canvas properly sized
+                window.addEventListener('resize', () => {
+                    resizeCanvasToDisplaySize(canvas);
                 });
             } catch (e) {
                 console.error("Error initializing WebGL:", e);
                 document.getElementById('error-message').textContent = 
                     `WebGL error: ${e.message}. Try using a different browser or updating your graphics drivers.`;
-                document.getElementById('error-container').style.display = 'block';
+                document.getElementById('error-container').style.display = 'flex';
             }
         }
         
@@ -47,10 +63,15 @@
             if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
                 canvas.width = displayWidth;
                 canvas.height = displayHeight;
+                console.log(`Canvas resized to ${displayWidth}x${displayHeight}`);
             }
         }
 
-        run();
+        // Start the application when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM loaded, running application");
+            run();
+        });
     </script>
 </head>
 <body>

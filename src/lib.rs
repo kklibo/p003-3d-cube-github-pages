@@ -5,16 +5,11 @@ use std::cell::RefCell;
 use std::f32::consts::PI;
 use std::rc::Rc;
 
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 // A macro to provide `println!(..)`-style syntax for `console.log` logging.
 #[allow(unused_macros)]
 macro_rules! log {
     ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
+        web_sys::console::log_1(&format!( $( $t )* ).into())
     }
 }
 
@@ -158,34 +153,44 @@ impl Cube {
         let cube_rc = Rc::new(RefCell::new(self.clone()));
         let cube_clone = cube_rc.clone();
         
-        // Create animation frame callback
-        let closure = Closure::wrap(Box::new(move |time: f64| {
+        // Create closure for animation frame callback
+        let f = Closure::wrap(Box::new(move |time: f64| {
             let mut cube = cube_clone.borrow_mut();
             cube.render(time);
             
             // Request next frame
             let window = web_sys::window().unwrap();
-            let id = window.request_animation_frame(
-                cube.render_loop.as_ref().unwrap().closure.as_ref().unwrap().as_ref().unchecked_ref()
-            ).unwrap();
-            cube.animation_id = Some(id);
+            match &cube.render_loop {
+                Some(render_loop) => {
+                    match &render_loop.closure {
+                        Some(closure) => {
+                            let id = window.request_animation_frame(closure.as_ref().unchecked_ref()).unwrap();
+                            cube.animation_id = Some(id);
+                        },
+                        None => { log!("Closure is None"); }
+                    }
+                },
+                None => { log!("Render loop is None"); }
+            }
         }) as Box<dyn FnMut(f64)>);
         
         // Set up render loop
         let render_loop = RenderLoop {
             cube: cube_rc,
-            closure: Some(closure),
+            closure: Some(f),
         };
         
-        // Set the render loop field and initiate animation
+        // Set the render loop field
         self.render_loop = Some(render_loop);
         
-        // Start animation
+        // Start animation by requesting first frame
         let window = web_sys::window().unwrap();
-        let id = window.request_animation_frame(
-            self.render_loop.as_ref().unwrap().closure.as_ref().unwrap().as_ref().unchecked_ref()
-        ).unwrap();
-        self.animation_id = Some(id);
+        if let Some(render_loop) = &self.render_loop {
+            if let Some(closure) = &render_loop.closure {
+                let id = window.request_animation_frame(closure.as_ref().unchecked_ref()).unwrap();
+                self.animation_id = Some(id);
+            }
+        }
         
         Ok(())
     }
@@ -516,18 +521,4 @@ fn init_buffers(gl: &WebGlRenderingContext) -> Result<Buffers, JsValue> {
         color: color_buffer,
         indices: index_buffer,
     })
-}
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = Function, js_name = "prototype.bind.call")]
-    fn call_bind(this: &JsValue, target: &JsValue) -> JsValue;
-}
-
-// Helper function to create a once closure
-fn closure_wasm_once(closure: &Closure<dyn FnMut(f64)>) -> JsValue {
-    let perf = web_sys::window().unwrap().performance().unwrap();
-    let closure_js_val = closure.as_ref().clone();
-    let func_js_val = JsValue::from(js_sys::Function::new_no_args("return this"));
-    call_bind(&func_js_val, &closure_js_val)
 } 
