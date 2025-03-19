@@ -38,10 +38,35 @@
     </div>
 
     <script type="module">
-        import init, { Cube } from './pkg/p003_3d_cube_github_pages.js';
+        // Add error handler for unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('[FATAL] Unhandled promise rejection:', event.reason);
+            displayError(`Unhandled error: ${event.reason}`);
+        });
 
-        // Make the cube accessible globally for debugging
-        window.myCube = null;
+        // Function to display errors to the user
+        function displayError(message) {
+            console.error('[ERROR]', message);
+            const errorContainer = document.getElementById('error-container');
+            const errorMessage = document.getElementById('error-message');
+            
+            if (errorContainer && errorMessage) {
+                errorMessage.textContent = message;
+                errorContainer.style.display = 'flex';
+            } else {
+                alert(message);
+            }
+        }
+
+        // Function to check WebGL support
+        function checkWebGLSupport() {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) {
+                throw new Error('WebGL is not supported in your browser');
+            }
+            return gl;
+        }
 
         // Resize canvas to match display size
         function resizeCanvasToDisplaySize(canvas) {
@@ -51,7 +76,7 @@
             if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
                 canvas.width = displayWidth;
                 canvas.height = displayHeight;
-                console.log(`Canvas resized to ${displayWidth}x${displayHeight}`);
+                console.log(`[UI] Canvas resized to ${displayWidth}x${displayHeight}`);
             }
         }
 
@@ -59,10 +84,16 @@
         async function initializeCube() {
             try {
                 console.log("[INIT] Starting initialization");
+                
+                // Check WebGL support first
+                console.log("[INIT] Checking WebGL support...");
+                checkWebGLSupport();
+                console.log("[INIT] WebGL support confirmed");
+                
                 console.log("[INIT] Loading WebAssembly module...");
-                await init().catch(e => {
+                const wasmModule = await init().catch(e => {
                     console.error("[ERROR] Failed to initialize WebAssembly module:", e);
-                    throw e;
+                    throw new Error(`WebAssembly initialization failed: ${e.message}`);
                 });
                 console.log("[INIT] WebAssembly module loaded successfully");
                 
@@ -82,7 +113,7 @@
                     console.log("[INIT] Cube instance created successfully");
                 } catch (e) {
                     console.error("[ERROR] Failed to create cube instance:", e);
-                    throw e;
+                    throw new Error(`Cube creation failed: ${e.message}`);
                 }
                 
                 window.myCube = cube;
@@ -94,7 +125,7 @@
                     console.log("[INIT] Animation started:", result);
                 } catch (e) {
                     console.error("[ERROR] Failed to start animation:", e);
-                    throw e;
+                    throw new Error(`Animation start failed: ${e.message}`);
                 }
                 
                 // Set up control buttons
@@ -136,24 +167,7 @@
                 console.log("[INIT] Initialization complete");
             } catch (e) {
                 console.error("[FATAL] Error initializing application:", e);
-                
-                // Try to display error in a user-friendly way
-                try {
-                    const errorContainer = document.getElementById('error-container');
-                    const errorMessage = document.getElementById('error-message');
-                    
-                    if (errorContainer && errorMessage) {
-                        errorMessage.textContent = `Error: ${e.message || "Unknown error"}. Try using a different browser or updating your graphics drivers.`;
-                        errorContainer.style.display = 'flex';
-                        console.log("[UI] Error message displayed to user");
-                    } else {
-                        console.error("[ERROR] Could not find error display elements");
-                        alert(`Error initializing 3D cube: ${e.message || "Unknown error"}`);
-                    }
-                } catch (displayErr) {
-                    console.error("[ERROR] Failed to display error message:", displayErr);
-                    alert(`Error initializing 3D cube: ${e.message || "Unknown error"}`);
-                }
+                displayError(`Error initializing 3D cube: ${e.message}`);
             }
         }
 

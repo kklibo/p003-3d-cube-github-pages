@@ -1,9 +1,9 @@
 name: Build and Deploy
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 permissions:
@@ -20,16 +20,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
+          
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        
       - name: Build
-        run: wasm-pack build --target web
+        run: |
+          echo "Building WebAssembly package..."
+          wasm-pack build --target web
+          echo "Listing contents of pkg directory:"
+          ls -la pkg/
+          echo "Listing contents of root directory:"
+          ls -la
+          
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
